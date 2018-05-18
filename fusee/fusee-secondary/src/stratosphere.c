@@ -12,8 +12,8 @@
 #include "loader_kip.h"
 #include "pm_kip.h"
 #include "sm_kip.h"
-#include "boot100_kip.h"
-#include "boot200_kip.h"
+#include "boot_100_kip.h"
+#include "boot_200_kip.h"
 #undef u8
 #undef u32
 
