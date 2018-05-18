@@ -6,7 +6,10 @@ ifeq ($(strip $(DEVKITARM)),)
 $(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
 endif
 
-TOPDIR ?= $(CURDIR)
+TOPDIR	?= $(CURDIR)
+
+AMS		:= $(TOPDIR)/../../
+
 include $(DEVKITARM)/base_rules
 
 #---------------------------------------------------------------------------------
@@ -19,7 +22,7 @@ include $(DEVKITARM)/base_rules
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 SOURCES		:=	src src/lib src/lib/fatfs src/display src/hwinit
-DATA		:=	components
+DATA		:=	data
 INCLUDES	:=	include
 
 #---------------------------------------------------------------------------------
@@ -66,15 +69,18 @@ ifneq ($(BUILD),$(notdir $(CURDIR)))
 export OUTPUT	:=	$(CURDIR)/$(TARGET)
 export TOPDIR	:=	$(CURDIR)
 
+export KIPDIRS	:= $(AMS)/stratosphere/loader $(AMS)/stratosphere/pm $(AMS)/stratosphere/sm $(AMS)/stratosphere/boot
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
-			$(foreach dir,$(DATA),$(CURDIR)/$(dir))
+			$(foreach dir,$(DATA),$(CURDIR)/$(dir)) \
+			$(AMS)/exosphere $(AMS)/thermosphere $(KIPDIRS)
 
 export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
+KIPFILES 	:=	loader.kip pm.kip sm.kip boot_100.kip boot_200.kip
+BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*))) exosphere.bin thermosphere.bin $(KIPFILES)
 
 #---------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C
@@ -102,19 +108,32 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
 .PHONY: $(BUILD) clean all
+.PHONY: check_exosphere check_thermosphere check_exosphere
 
 #---------------------------------------------------------------------------------
 all: $(BUILD)
 
-$(BUILD):
+check_exosphere:
+	@$(MAKE) -C $(AMS)/exosphere all
+
+check_thermosphere:
+	@$(MAKE) -C $(AMS)/thermosphere all
+
+check_stratosphere:
+	@$(MAKE) -C $(AMS)/stratosphere all
+
+
+$(BUILD): check_exosphere check_thermosphere check_stratosphere
 	@[ -d $@ ] || mkdir -p $@
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).bin $(TARGET).elf components
-
+	@$(MAKE) -C $(AMS)/exosphere clean
+	@$(MAKE) -C $(AMS)/thermosphere clean
+	@$(MAKE) -C $(AMS)/stratosphere clean
+	@rm -fr $(BUILD) $(TARGET).bin $(TARGET).elf
 
 #---------------------------------------------------------------------------------
 else
@@ -143,12 +162,12 @@ $(OFILES_SRC)	: $(HFILES_BIN)
 #---------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data
 #---------------------------------------------------------------------------------
-%.bin.o	:	%.bin
+%.bin.o	%_bin.h:	%.bin
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@$(bin2o)
 
-%.kip.o	:	%.kip
+%.kip.o	%_kip.h:	%.kip
 #---------------------------------------------------------------------------------
 	@echo $(notdir $<)
 	@$(bin2o)
