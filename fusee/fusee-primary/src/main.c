@@ -11,6 +11,8 @@
 #include "lib/printk.h"
 #include "display/video_fb.h"
 
+#define I_KNOW_WHAT_I_AM_DOING
+
 extern void (*__program_exit_callback)(int rc);
 
 static void *g_framebuffer;
