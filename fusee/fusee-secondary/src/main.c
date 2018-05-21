@@ -5,6 +5,7 @@
 #include <malloc.h>
 #include "utils.h"
 #include "panic.h"
+#include "exception_handlers.h"
 #include "loader.h"
 #include "chainloader.h"
 #include "stage2.h"
@@ -21,17 +22,16 @@ static stage2_args_t *g_stage2_args;
 static bool g_do_nxboot;
 
 static void setup_env(void) {
-    /* Check for panics. */
-    check_and_display_panic();
-
     /* Set the console up. */
     if (console_init() == -1) {
         generic_panic();
     }
 
+    /* Set up exception handlers. */
+    setup_exception_handlers();
+
     if(switchfs_mount_all() == -1) {
-        perror("Failed to mount at least one parition");
-        generic_panic();
+        fatal_error("Failed to mount at least one parition: %s\n", strerror(errno));
     }
 
     /* TODO: What other hardware init should we do here? */
@@ -62,14 +62,12 @@ int main(int argc, void **argv) {
     setup_env();
 
     if (argc != STAGE2_ARGC) {
-        printf("Error: Invalid argc (expected %d, got %d)!\n", STAGE2_ARGC, argc);
-        generic_panic();
+        fatal_error("Invalid argc (expected %d, got %d)!\n", STAGE2_ARGC, argc);
     }
     g_stage2_args = (stage2_args_t *)argv[STAGE2_ARGV_ARGUMENT_STRUCT];
 
     if(g_stage2_args->version != 0) {
-        printf("Error: Incorrect Stage2 args version (expected %lu, got %lu)!\n", 0ul, g_stage2_args->version);
-        generic_panic();
+        fatal_error("Incorrect Stage2 args version (expected %lu, got %lu)!\n", 0ul, g_stage2_args->version);
     }
 
     printf(u8"Welcome to Atmosphère Fusée Stage 2!\n");

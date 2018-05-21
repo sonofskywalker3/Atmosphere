@@ -1,11 +1,17 @@
 #include <stdbool.h>
+#include <stdarg.h>
 #include "utils.h"
 #include "se.h"
 #include "fuse.h"
 #include "pmc.h"
 #include "timers.h"
+#include "panic.h"
+#include "car.h"
 
+#include "lib/printk.h"
 #include "hwinit/btn.h"
+
+#include <inttypes.h>
 
 __attribute__((noreturn)) void watchdog_reboot(void) {
     volatile watchdog_timers_t *wdt = GET_WDT(4);
@@ -30,22 +36,37 @@ __attribute__((noreturn)) void pmc_reboot(uint32_t scratch0) {
     }
 }
 
-__attribute__((noreturn)) void wait_for_button_and_pmc_reboot(void) {
+__attribute__((noreturn)) void car_reboot(void) {
+    /* Reset the processor. */
+    car_get_regs()->rst_dev_l |= 1<<2;
+
+    while (true) {
+        /* Wait for reboot. */
+    }
+}
+
+__attribute__((noreturn)) void wait_for_button_and_reboot(void) {
     uint32_t button;
     while (true) {
         button = btn_read();
         if (button & BTN_POWER) {
-            /* Reboot into RCM. */
-            pmc_reboot(BIT(1) | 0);
-        } else if (button & (BTN_VOL_UP | BTN_VOL_DOWN)) {
-            /* Reboot normally. */
-            pmc_reboot(0);
+            car_reboot();
         }
     }
 }
 
 __attribute__ ((noreturn)) void generic_panic(void) {
-    while(true);//panic(0xFF000006);
+    panic(0xFF000006);
+}
+
+__attribute__((noreturn)) void fatal_error(const char *fmt, ...) {
+    va_list args;
+    printk("Fatal error: ");
+    va_start(args, fmt);
+    vprintk(fmt, args);
+    va_end(args);
+    printk("\nPress POWER to reboot\n");
+    wait_for_button_and_reboot();
 }
 
 __attribute__((noinline)) bool overlaps(uint64_t as, uint64_t ae, uint64_t bs, uint64_t be)
@@ -55,4 +76,38 @@ __attribute__((noinline)) bool overlaps(uint64_t as, uint64_t ae, uint64_t bs, u
     if(bs <= as && as <= be)
         return true;
     return false;
+}
+
+/* Adapted from https://gist.github.com/ccbrown/9722406 */
+void hexdump(const void* data, size_t size, uintptr_t addrbase) {
+    const uint8_t *d = (const uint8_t *)data;
+    char ascii[17];
+    ascii[16] = '\0';
+
+    for (size_t i = 0; i < size; i++) {
+        if (i % 16 == 0) {
+            printk("%0*" PRIXPTR ": | ", 2 * sizeof(addrbase), addrbase + i);
+        }
+        printk("%02X ", d[i]);
+        if (d[i] >= ' ' && d[i] <= '~') {
+            ascii[i % 16] = d[i];
+        } else {
+            ascii[i % 16] = '.';
+        }
+        if ((i+1) % 8 == 0 || i+1 == size) {
+            printk(" ");
+            if ((i+1) % 16 == 0) {
+                printk("|  %s \n", ascii);
+            } else if (i+1 == size) {
+                ascii[(i+1) % 16] = '\0';
+                if ((i+1) % 16 <= 8) {
+                    printk(" ");
+                }
+                for (size_t j = (i+1) % 16; j < 16; j++) {
+                    printk("   ");
+                }
+                printk("|  %s \n", ascii);
+            }
+        }
+    }
 }
