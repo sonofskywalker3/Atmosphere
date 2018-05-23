@@ -17,6 +17,7 @@
 
 #define u8 uint8_t
 #define u32 uint32_t
+#define I_KNOW_WHAT_IM_DOING_2
 #include "exosphere_bin.h"
 #undef u8
 #undef u32
