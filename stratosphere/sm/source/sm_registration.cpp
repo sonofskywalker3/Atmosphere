@@ -252,6 +252,12 @@ Result Registration::RegisterServiceForPid(u64 pid, u64 service, u64 max_session
         return 0x815;
     }
     
+#ifdef SM_MINIMUM_SESSION_LIMIT
+    if (max_sessions < SM_MINIMUM_SESSION_LIMIT) {
+        max_sessions = SM_MINIMUM_SESSION_LIMIT;
+    }
+#endif
+
     Registration::Service *free_service = GetFreeService();
     if (free_service == NULL) {
         return 0xA15;
@@ -264,6 +270,8 @@ Result Registration::RegisterServiceForPid(u64 pid, u64 service, u64 max_session
     if (R_SUCCEEDED(rc)) {
         free_service->service_name = service;
         free_service->owner_pid = pid;
+        free_service->max_sessions = max_sessions;
+        free_service->is_light = is_light;
     }
     
     return rc;
@@ -286,6 +294,12 @@ Result Registration::RegisterServiceForSelf(u64 service, u64 max_sessions, bool 
     if (HasService(service)) {
         return 0x815;
     }
+
+#ifdef SM_MINIMUM_SESSION_LIMIT
+    if (max_sessions < SM_MINIMUM_SESSION_LIMIT) {
+        max_sessions = SM_MINIMUM_SESSION_LIMIT;
+    }
+#endif
     
     Registration::Service *free_service = GetFreeService();
     if (free_service == NULL) {

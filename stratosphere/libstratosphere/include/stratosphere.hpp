@@ -3,10 +3,12 @@
 #include "stratosphere/iwaitable.hpp"
 #include "stratosphere/iserviceobject.hpp"
 #include "stratosphere/iserver.hpp"
+#include "stratosphere/ipcsession.hpp"
 #include "stratosphere/servicesession.hpp"
 #include "stratosphere/serviceserver.hpp"
 #include "stratosphere/managedportserver.hpp"
 #include "stratosphere/existingportserver.hpp"
+#include "stratosphere/childholder.hpp"
 
 #include "stratosphere/ievent.hpp"
 #include "stratosphere/systemevent.hpp"
